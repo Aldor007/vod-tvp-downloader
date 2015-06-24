@@ -1,5 +1,5 @@
 {
-  "name": "vod-tvp-crawler",
+  "name": "vod-tvp-downloader",
   "version": "1.0.0",
   "description": "Get video from vod.tvp.pl",
   "main": "crawler.js",
@@ -13,5 +13,5 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Marcin Kaciuba",
-  "license": "ISC"
+  "license": "MIT"
 }
