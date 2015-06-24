@@ -17,12 +17,12 @@ var yargs = require('yargs')
     .epilog('Have fun');
 var argv = yargs.argv;
 
+var URL_REGEXP = /(http|ftp|https):\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?/
 
 var urls = [];
 
 if (argv.url) {
-    urls = argv.url;
-
+    urls.push(argv.url);
 } else if (argv.file) {
     var buf =   fs.readFileSync(argv.file, 'utf-8');
     var tmp = buf.split('\n');
@@ -37,6 +37,13 @@ if (argv.url) {
     process.exit(1);
 }
 
+// validate url
+for (var i = 0, len = urls.length; i < len; ++i) {
+    if (!urls[i].match(URL_REGEXP) || urls[i].indexOf('vod.tvp.pl') == -1) {
+        console.error('Unsupported url %s!', urls[i]);
+        process.exit(123);
+    }
+}
 
 var LinkGetter = function  (options) {
     options = options ||  {};
@@ -66,13 +73,12 @@ LinkGetter.prototype.run = function (links, callback) {
                 movieLinks.push($(data).attr('src'))
 
             });
-
-            },
-            'onDrain': function() {
-                console.info('End of getting links to video');
-                that._getMovieLinks(movieLinks, callback);
-            },
-            'userAgent': that._options.userAgent
+        },
+        'onDrain': function() {
+            console.info('End of getting links to video');
+            that._getMovieLinks(movieLinks, callback);
+        },
+        'userAgent': that._options.userAgent
         });
     c.queue(links);
 };
@@ -96,17 +102,16 @@ LinkGetter.prototype._getMovieLinks = function (links, callback) {
                 return callback(error);
             }
             videoLinks.push(that._parseVideoLink(result, $));
-
-            },
-            'onDrain': function() {
-                callback(null, videoLinks)
-            },
-            'userAgent': that._options.userAgent
+        },
+        'onDrain': function() {
+            callback(null, videoLinks)
+        },
+        'userAgent': that._options.userAgent
     });
+
     for (var i = 0, len = links.length; i < len; i++) {
         c.queue(links[i]);
     };
-
 
 };
 /**
@@ -183,18 +188,14 @@ var downloadList = function (links, callback) {
                 return callback();
             }
             counter++;
-
-        })
+        });
     }
-
-}
-
-
+};
 
 var vod = new LinkGetter({
     'userAgent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2427.7 Safari/537.36'
-
 });
+
 vod.run(urls, function (err, links) {
     if (err) {
         console.error('Error ', err);
@@ -206,8 +207,3 @@ vod.run(urls, function (err, links) {
     })
 
 });
-
-
-
-
-
