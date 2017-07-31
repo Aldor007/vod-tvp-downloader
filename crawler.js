@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 var Crawler = require('crawler');
 var http = require('http');
+var https = require('https');
 var fs = require('fs');
 var ProgressBar = require('progress');
 var yargs = require('yargs')
@@ -54,10 +55,10 @@ var LinkGetter = function  (options) {
 
 /**
  * @brief Get links to video
- * 
+ *
  * @param links {array} Array with links to parse
  * @param callback {function} callback
- * 
+ *
  * @return [description]
  */
 LinkGetter.prototype.run = function (links, callback) {
@@ -65,30 +66,36 @@ LinkGetter.prototype.run = function (links, callback) {
     var that = this;
     var c = new Crawler({
         'maxConnections': 5,
-        'callback': function (error, result, $) {
+        'callback': function (error, res, done) {
+            var $ = res.$;
             if (error) {
                     return console.error('StrimsAPI/getContentOfStrims crawler error', error);
                 }
-            $('#desc > div.movieWrapper > iframe').each(function(index, data) {
+
+            console.info('Status code', res.statusCode)
+            $('iframe.fit-height').each(function(index, data) {
+                console.log('Found link')
                 movieLinks.push($(data).attr('src'))
 
             });
-        },
-        'onDrain': function() {
-            console.info('End of getting links to video');
-            that._getMovieLinks(movieLinks, callback);
+            done();
         },
         'userAgent': that._options.userAgent
         });
+
+    c.on('drain',  function() {
+            console.info('End of getting links to video');
+            that._getMovieLinks(movieLinks, callback);
+    });
     c.queue(links);
 };
 
 /**
  * @brief Get link to video file and title
- * 
+ *
  * @param links {array} links from iframe
  * @param callback {function} callback
- * 
+ *
  */
 LinkGetter.prototype._getMovieLinks = function (links, callback) {
     var that = this;
@@ -96,32 +103,39 @@ LinkGetter.prototype._getMovieLinks = function (links, callback) {
     console.info('LinkGetter/_getMovieLinks getting', links);
     var c = new Crawler({
         'maxConnections': 5,
-        'callback': function (error, result, $) {
+        'callback': function (error, res, done) {
             if (error) {
                 console.error('LinksGetter crawler error', error);
                 return callback(error);
             }
-            videoLinks.push(that._parseVideoLink(result, $));
-        },
-        'onDrain': function() {
-            callback(null, videoLinks)
+            var $ = res.$;
+            videoLinks.push(that._parseVideoLink(res, $));
+            done();
         },
         'userAgent': that._options.userAgent
     });
 
+    c.on('drain', function() {
+        console.info('Video linkts', videoLinks)
+        callback(null, videoLinks)
+    });
+
+    var vodLink = 'https://vod.tvp.pl/sess/tvplayer.php?object_id='
     for (var i = 0, len = links.length; i < len; i++) {
-        c.queue(links[i]);
+
+        var pathSplit = links[i].split('/')
+        c.queue(vodLink + pathSplit.pop());
     };
 
 };
 /**
  * @brief Parse html and link to mp4 video
- * 
- * @param result {object} 
- * @param $ jQuery 
+ *
+ * @param result {object}
+ * @param $ jQuery
  */
-LinkGetter.prototype._parseVideoLink = function (result, $) {
-    var body = result.body;
+LinkGetter.prototype._parseVideoLink = function (res, $) {
+    var body = res.body;
     var result = body.search(/1:\{src:\'[a-zA-Z0-9\.\-\:\/]+\',/);
     var link = '';
     var counter = 0;
@@ -133,7 +147,7 @@ LinkGetter.prototype._parseVideoLink = function (result, $) {
             link = link + body[i];
         } else if (counter == 2) {
             break;
-        } 
+        }
 
     }
     var title = $('title').text();
@@ -144,14 +158,19 @@ LinkGetter.prototype._parseVideoLink = function (result, $) {
 
 /**
  * @brief Download file and save as dest
- * 
+ *
  * @param url {string}
  * @param dest {string}
  * @param cb   {function}
  */
 var download = function(url, dest, cb) {
   var file = fs.createWriteStream(dest);
-  var request = http.get(url, function(response) {
+  var proto = http;
+  if (url.indexOf('https://') > -1) {
+    proto = https;
+  }
+
+  var request = proto.get(url, function(response) {
     console.info('Downloading', url, dest);
     var len = parseInt(response.headers['content-length'], 10);
     console.info();
@@ -175,7 +194,7 @@ var download = function(url, dest, cb) {
 /**
  * @brief Download list of files
  * @details [long description]
- * 
+ *
  * @param links {array}
  * @param callback {function}
  */
