@@ -1,7 +1,7 @@
 # vod-tvp-downloader
 Downloads mp4 files from vod.tvp.pl
 
-## Instalation
+## Installation
 ```bash
 $ git clone https://github.com/Aldor007/vod-tvp-downloader.git && cd vod-tvp-downloader
 $ npm install
